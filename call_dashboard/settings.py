@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-z=%ma-un=irq*2^2(-ejhus6bl8hw)7rt#8e%v6=k875_+q4r_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "calls"
+    "calls",
+    "call_dashboard.wsgi.application",
 ]
 
 MIDDLEWARE = [
@@ -48,6 +49,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "call_dashboard.wsgi.application",
 ]
 
 ROOT_URLCONF = "call_dashboard.urls"
