@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+{% load call_filters %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Voice Calling Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4a6fdc;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --white-color: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fb;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            font-size: 28px;
+        }
+
+        .date-display {
+            font-size: 16px;
+            color: var(--secondary-color);
+        }
+
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background-color: var(--white-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            color: var(--secondary-color);
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .kpi-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .chart-container {
+            background-color: var(--white-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+        }
+
+        .chart-container h2 {
+            color: var(--dark-color);
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .calls-table-container {
+            background-color: var(--white-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+
+        .calls-table-container h2 {
+            color: var(--dark-color);
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table th, table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        table th {
+            background-color: #f8f9fa;
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .view-more-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .view-more-btn:hover {
+            background-color: #3a5bbf;
+        }
+
+        .follow-up-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .follow-up-yes {
+            background-color: #e6f7e6;
+            color: #28a745;
+        }
+
+        .follow-up-no {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: var(--white-color);
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            width: 80%;
+            max-width: 800px;
+            animation: modalFadeIn 0.3s;
+        }
+
+        @keyframes modalFadeIn {
+            from {opacity: 0; transform: translateY(-20px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            color: var(--dark-color);
+        }
+
+        .close-modal {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--secondary-color);
+            cursor: pointer;
+        }
+
+        .close-modal:hover {
+            color: var(--danger-color);
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section h3 {
+            color: var(--secondary-color);
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .modal-section p {
+            line-height: 1.6;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .transcript-text {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        @media (max-width: 768px) {
+            .kpi-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Healthcare Voice Calling Dashboard</h1>
+            <div class="date-display" id="current-date"></div>
+        </header>
+
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <h3>Total Calls</h3>
+                <div class="value">{{ total_calls }}</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Average Call Duration</h3>
+                <div class="value">{{ avg_duration_minutes }} min</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>Call Volume (Last Week)</h2>
+            <canvas id="callVolumeChart"></canvas>
+        </div>
+
+        <div class="calls-table-container">
+            <h2>Recent Calls</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Phone Number</th>
+                        <th>Duration</th>
+                        <th>Call Time</th>
+                        <th>Follow-up</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for call in recent_calls %}
+                    <tr>
+                        <td>{{ call.phone_number }}</td>
+                        <td>{{ call.duration|divisibleby:60 }} min {{ call.duration|modulo:60 }} sec</td>
+                        <td>{{ call.call_time|date:"M d, Y H:i" }}</td>
+                        <td>
+                            {% if call.follow_up %}
+                            <span class="follow-up-badge follow-up-yes">Yes</span>
+                            {% else %}
+                            <span class="follow-up-badge follow-up-no">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="view-more-btn" data-call-id="{{ call.id }}">View More</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal for call details -->
+    <div id="callDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Call Details</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h3>Summary</h3>
+                    <p id="callSummary"></p>
+                </div>
+                <div class="modal-section">
+                    <h3>Transcript</h3>
+                    <div class="transcript-text" id="callTranscript"></div>
+                </div>
+                <div class="modal-section">
+                    <h3>Recording</h3>
+                    <div id="recordingContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        function pollForNewCalls() {
+            const lastCallId = document.querySelector('table tbody tr:first-child .view-more-btn')?.dataset.callId;
+            
+            if (lastCallId) {
+                fetch(`/latest-calls/?last_id=${lastCallId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.calls && data.calls.length > 0) {
+                            const tbody = document.querySelector('table tbody');
+                            
+                            // Add new calls to the top of the table
+                            data.calls.forEach(call => {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `
+                                    <td>${call.phone_number}</td>
+                                    <td>${Math.floor(call.duration/60)} min ${call.duration % 60} sec</td>
+                                    <td>${new Date(call.call_time).toLocaleString()}</td>
+                                    <td>
+                                        <span class="follow-up-badge ${call.follow_up ? 'follow-up-yes' : 'follow-up-no'}">
+                                            ${call.follow_up ? 'Yes' : 'No'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="view-more-btn" data-call-id="${call.id}">View More</button>
+                                    </td>
+                                `;
+                                
+                                // Add event listener to the new button
+                                const viewMoreBtn = tr.querySelector('.view-more-btn');
+                                viewMoreBtn.addEventListener('click', function() {
+                                    fetchCallDetails(this.getAttribute('data-call-id'));
+                                });
+                                
+                                tbody.prepend(tr);
+                            });
+                            
+                            // Update total calls count
+                            const totalCallsElement = document.querySelector('.kpi-card:nth-child(1) .value');
+                            if (totalCallsElement) {
+                                totalCallsElement.textContent = parseInt(totalCallsElement.textContent) + data.calls.length;
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error polling for new calls:', error));
+            }
+            
+            // Poll every 10 seconds
+            setTimeout(pollForNewCalls, 10000);
+        }
+        // Display current date
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const currentDate = new Date().toLocaleDateString('en-US', dateOptions);
+            document.getElementById('current-date').textContent = currentDate;
+            
+            // Initialize call volume chart
+            const callVolumeData = JSON.parse('{{ call_volume_data|safe }}');
+            const ctx = document.getElementById('callVolumeChart').getContext('2d');
+            
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: callVolumeData.map(item => item.day),
+                    datasets: [{
+                        label: 'Number of Calls',
+                        data: callVolumeData.map(item => item.count),
+                        backgroundColor: '#4a6fdc',
+                        borderColor: '#3a5bbf',
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                drawBorder: false
+                            },
+                            ticks: {
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Set chart height
+            ctx.canvas.parentNode.style.height = '300px';
+            
+            // Modal functionality
+            const modal = document.getElementById('callDetailsModal');
+            const closeModal = document.querySelector('.close-modal');
+            const viewMoreButtons = document.querySelectorAll('.view-more-btn');
+            
+            viewMoreButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const callId = this.getAttribute('data-call-id');
+                    fetchCallDetails(callId);
+                });
+            });
+            
+            closeModal.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            function fetchCallDetails(callId) {
+                fetch(`/call-details/${callId}/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        document.getElementById('callSummary').textContent = data.summary || 'No summary available';
+                        document.getElementById('callTranscript').textContent = data.transcript || 'No transcript available';
+                        
+                        const recordingContainer = document.getElementById('recordingContainer');
+                        recordingContainer.innerHTML = '';
+                        
+                        if (data.recording_url) {
+                            const audio = document.createElement('audio');
+                            audio.controls = true;
+                            audio.className = 'audio-player';
+                            audio.src = data.recording_url;
+                            recordingContainer.appendChild(audio);
+                        } else {
+                            recordingContainer.textContent = 'No recording available';
+                        }
+                        
+                        modal.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching call details:', error);
+                        alert('Error loading call details. Please try again.');
+                    });
+            }
+
+            pollForNewCalls();
+        });
+    </script>
+</body>
+</html>
