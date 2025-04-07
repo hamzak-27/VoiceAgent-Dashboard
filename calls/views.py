@@ -56,18 +56,29 @@ def webhook(request):
         try:
             data = json.loads(request.body)
             
-            # Extract call data from the webhook payload
-            call = Call.objects.create(
-                phone_number=data.get('from_number') or data.get('caller_number', 'Unknown'),
-                duration=data.get('duration', 0),
-                call_time=data.get('start_time') or timezone.now(),
-                follow_up=data.get('Follow_up', False) or data.get('appointment_booked', False),
-                summary=data.get('summary'),
-                transcript=data.get('transcript'),
-                recording_url=data.get('recording_url')
-            )
-            
-            return JsonResponse({'status': 'success', 'id': call.id}, status=201)
+            # Check if this is a call_analyzed event (the one with complete data)
+            if data.get('event') == 'call_analyzed':
+                call_data = data.get('call', {})
+                
+                # Extract call data from the Retell payload
+                call = Call.objects.create(
+                    phone_number=call_data.get('from_number', 'Unknown'),
+                    duration=int(call_data.get('duration_ms', 0) / 1000),  # Convert ms to seconds
+                    call_time=datetime.datetime.fromtimestamp(
+                        int(call_data.get('start_timestamp', 0)) / 1000,  
+                        tz=timezone.utc
+                    ),
+                    follow_up=call_data.get('call_analysis', {}).get('custom_analysis_data', {}).get('_follow_up', False),
+                    summary=call_data.get('call_analysis', {}).get('call_summary', ''),
+                    transcript=call_data.get('transcript', ''),
+                    recording_url=call_data.get('recording_url', '')
+                )
+                
+                return JsonResponse({'status': 'success', 'id': call.id}, status=201)
+            else:
+                # This handles other event types like call_started, call_ended
+                return JsonResponse({'status': 'received', 'event': data.get('event')}, status=200)
+                
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
