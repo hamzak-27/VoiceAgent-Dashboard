@@ -141,7 +141,7 @@ def webhook(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
     return JsonResponse({'status': 'method not allowed'}, status=405)
-
+  
 def latest_calls(request):
     last_id = request.GET.get('last_id')
     
