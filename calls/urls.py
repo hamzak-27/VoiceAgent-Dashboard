@@ -6,4 +6,5 @@ urlpatterns = [
     path('call-details/<int:call_id>/', views.get_call_details, name='call_details'),
     path('webhook/', views.webhook, name='webhook'),
     path('latest-calls/', views.latest_calls, name='latest_calls'),
+    path('generate-summary/<int:call_id>/', views.generate_summary, name='generate_summary'),
 ]

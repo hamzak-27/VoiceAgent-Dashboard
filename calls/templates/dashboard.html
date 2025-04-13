@@ -137,10 +137,11 @@
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 8px;
+            margin-right: 5px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             transition: background-color 0.3s;
         }
 
@@ -248,6 +249,45 @@
             border: 1px solid #e0e0e0;
         }
 
+        .transcript-text .agent-line, 
+        .transcript-text .patient-line {
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+
+        .transcript-text .agent-line {
+            background-color: #e6f2ff;
+            border-left: 3px solid #4a6fdc;
+        }
+
+        .transcript-text .patient-line {
+            background-color: #f5f5f5;
+            border-left: 3px solid #6c757d;
+            margin-left: 10px;
+        }
+
+        .structured-summary {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .summary-item {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            background-color: #ffffff;
+            border-left: 3px solid #4a6fdc;
+        }
+        
+        .summary-item strong {
+            color: #4a6fdc;
+        }
+
         @media (max-width: 768px) {
             .kpi-container {
                 grid-template-columns: 1fr;
@@ -309,7 +349,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="view-more-btn" data-call-id="{{ call.id }}">View More</button>
+                            <button class="view-recording-btn view-more-btn" data-call-id="{{ call.id }}">Recording</button>
+                            <button class="view-transcript-btn view-more-btn" data-call-id="{{ call.id }}">Transcript</button>
+                            <button class="view-summary-btn view-more-btn" data-call-id="{{ call.id }}">Summary</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -318,34 +360,54 @@
         </div>
     </div>
 
-    <!-- Modal for call details -->
-    <div id="callDetailsModal" class="modal">
+    <!-- Modal for recording -->
+    <div id="recordingModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Call Details</h2>
+                <h2 class="modal-title">Recording</h2>
                 <span class="close-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="modal-section">
-                    <h3>Summary</h3>
-                    <p id="callSummary"></p>
-                </div>
-                <div class="modal-section">
-                    <h3>Transcript</h3>
-                    <div class="transcript-text" id="callTranscript"></div>
-                </div>
-                <div class="modal-section">
-                    <h3>Recording</h3>
                     <div id="recordingContainer"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
+    <!-- Modal for transcript -->
+    <div id="transcriptModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Transcript</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="transcript-text" id="callTranscript"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Modal for summary -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Call Summary</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div id="callSummary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
         function pollForNewCalls() {
-            const lastCallId = document.querySelector('table tbody tr:first-child .view-more-btn')?.dataset.callId;
+            const lastCallId = document.querySelector('table tbody tr:first-child .view-recording-btn')?.dataset.callId;
             
             if (lastCallId) {
                 fetch(`/latest-calls/?last_id=${lastCallId}`)
@@ -367,15 +429,14 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="view-more-btn" data-call-id="${call.id}">View More</button>
+                                        <button class="view-recording-btn view-more-btn" data-call-id="${call.id}">Recording</button>
+                                        <button class="view-transcript-btn view-more-btn" data-call-id="${call.id}">Transcript</button>
+                                        <button class="view-summary-btn view-more-btn" data-call-id="${call.id}">Summary</button>
                                     </td>
                                 `;
                                 
-                                // Add event listener to the new button
-                                const viewMoreBtn = tr.querySelector('.view-more-btn');
-                                viewMoreBtn.addEventListener('click', function() {
-                                    fetchCallDetails(this.getAttribute('data-call-id'));
-                                });
+                                // Add event listeners to the new buttons
+                                addEventListenersToNewButtons(tr);
                                 
                                 tbody.prepend(tr);
                             });
@@ -393,6 +454,7 @@
             // Poll every 10 seconds
             setTimeout(pollForNewCalls, 10000);
         }
+
         // Display current date
         document.addEventListener('DOMContentLoaded', function() {
             const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -448,28 +510,79 @@
             ctx.canvas.parentNode.style.height = '300px';
             
             // Modal functionality
-            const modal = document.getElementById('callDetailsModal');
-            const closeModal = document.querySelector('.close-modal');
-            const viewMoreButtons = document.querySelectorAll('.view-more-btn');
+            const recordingModal = document.getElementById('recordingModal');
+            const transcriptModal = document.getElementById('transcriptModal');
+            const summaryModal = document.getElementById('summaryModal');
+            const closeModalButtons = document.querySelectorAll('.close-modal');
+            const recordingButtons = document.querySelectorAll('.view-recording-btn');
+            const transcriptButtons = document.querySelectorAll('.view-transcript-btn');
+            const summaryButtons = document.querySelectorAll('.view-summary-btn');
             
-            viewMoreButtons.forEach(button => {
+            // Close modal when clicking X
+            closeModalButtons.forEach(button => {
                 button.addEventListener('click', function() {
-                    const callId = this.getAttribute('data-call-id');
-                    fetchCallDetails(callId);
+                    recordingModal.style.display = 'none';
+                    transcriptModal.style.display = 'none';
+                    summaryModal.style.display = 'none';
                 });
             });
             
-            closeModal.addEventListener('click', function() {
-                modal.style.display = 'none';
-            });
-            
+            // Close modal when clicking outside
             window.addEventListener('click', function(event) {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
+                if (event.target === recordingModal) {
+                    recordingModal.style.display = 'none';
+                }
+                if (event.target === transcriptModal) {
+                    transcriptModal.style.display = 'none';
+                }
+                if (event.target === summaryModal) {
+                    summaryModal.style.display = 'none';
                 }
             });
             
-            function fetchCallDetails(callId) {
+            // Set up event listeners for the recording buttons
+            recordingButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const callId = this.getAttribute('data-call-id');
+                    fetchRecordingDetails(callId);
+                });
+            });
+            
+            // Set up event listeners for the transcript buttons
+            transcriptButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const callId = this.getAttribute('data-call-id');
+                    fetchTranscriptDetails(callId);
+                });
+            });
+            
+            // Set up event listeners for the summary buttons
+            summaryButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const callId = this.getAttribute('data-call-id');
+                    fetchSummaryDetails(callId);
+                });
+            });
+            
+            function addEventListenersToNewButtons(tr) {
+                const recordingBtn = tr.querySelector('.view-recording-btn');
+                const transcriptBtn = tr.querySelector('.view-transcript-btn');
+                const summaryBtn = tr.querySelector('.view-summary-btn');
+                
+                recordingBtn.addEventListener('click', function() {
+                    fetchRecordingDetails(this.getAttribute('data-call-id'));
+                });
+                
+                transcriptBtn.addEventListener('click', function() {
+                    fetchTranscriptDetails(this.getAttribute('data-call-id'));
+                });
+                
+                summaryBtn.addEventListener('click', function() {
+                    fetchSummaryDetails(this.getAttribute('data-call-id'));
+                });
+            }
+            
+            function fetchRecordingDetails(callId) {
                 fetch(`/call-details/${callId}/`)
                     .then(response => {
                         if (!response.ok) {
@@ -478,9 +591,6 @@
                         return response.json();
                     })
                     .then(data => {
-                        document.getElementById('callSummary').textContent = data.summary || 'No summary available';
-                        document.getElementById('callTranscript').textContent = data.transcript || 'No transcript available';
-                        
                         const recordingContainer = document.getElementById('recordingContainer');
                         recordingContainer.innerHTML = '';
                         
@@ -494,12 +604,200 @@
                             recordingContainer.textContent = 'No recording available';
                         }
                         
-                        modal.style.display = 'block';
+                        recordingModal.style.display = 'block';
                     })
                     .catch(error => {
-                        console.error('Error fetching call details:', error);
-                        alert('Error loading call details. Please try again.');
+                        console.error('Error fetching recording details:', error);
+                        alert('Error loading recording. Please try again.');
                     });
+            }
+            
+            function fetchTranscriptDetails(callId) {
+                fetch(`/call-details/${callId}/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const transcriptContainer = document.getElementById('callTranscript');
+                        transcriptContainer.innerHTML = '';
+                        
+                        if (data.transcript) {
+                            const processedTranscript = processTranscript(data.transcript);
+                            transcriptContainer.innerHTML = processedTranscript;
+                        } else {
+                            transcriptContainer.textContent = 'No transcript available';
+                        }
+                        
+                        transcriptModal.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching transcript details:', error);
+                        alert('Error loading transcript. Please try again.');
+                    });
+            }
+            
+            function fetchSummaryDetails(callId) {
+                fetch(`/call-details/${callId}/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const summaryContainer = document.getElementById('callSummary');
+                        
+                        if (data.summary) {
+                            summaryContainer.innerHTML = formatSummary(data.summary);
+                        } else {
+                            summaryContainer.textContent = 'No summary available';
+                            
+                            // If there's no summary but there is a transcript, request a summary generation
+                            if (data.transcript) {
+                                fetch(`/generate-summary/${callId}/`, {
+                                    method: 'POST'
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        summaryContainer.innerHTML = formatSummary(data.summary);
+                                    } else {
+                                        summaryContainer.textContent = 'Failed to generate summary.';
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error generating summary:', error);
+                                    summaryContainer.textContent = 'Error generating summary.';
+                                });
+                            }
+                        }
+                        
+                        summaryModal.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching summary details:', error);
+                        alert('Error loading summary. Please try again.');
+                    });
+            }
+            
+            function formatSummary(summary) {
+                // Check if the summary is already in a key-value format
+                if (summary.includes(':')) {
+                    // Try to format it as a structured summary
+                    const lines = summary.split('\n');
+                    let formattedHtml = '<div class="structured-summary">';
+                    
+                    for (const line of lines) {
+                        if (line.includes(':')) {
+                            const parts = line.split(':');
+                            if (parts.length >= 2) {
+                                const key = parts[0].trim();
+                                const value = parts.slice(1).join(':').trim();
+                                formattedHtml += `<div class="summary-item"><strong>${key}:</strong> ${value}</div>`;
+                            } else {
+                                formattedHtml += `<div class="summary-item">${line}</div>`;
+                            }
+                        } else if (line.trim()) {
+                            formattedHtml += `<div class="summary-item">${line}</div>`;
+                        }
+                    }
+                    
+                    formattedHtml += '</div>';
+                    return formattedHtml;
+                }
+                
+                // If not in key-value format, just return the text
+                return `<p>${summary}</p>`;
+            }
+            
+            // Helper function to process and format transcripts
+            function processTranscript(transcript) {
+                if (!transcript) return '';
+                
+                const lines = [];
+                let currentSpeaker = null;
+                let currentText = [];
+                
+                // First pass - normalize by splitting by speaker changes
+                const rawLines = transcript.split('\n');
+                for (let i = 0; i < rawLines.length; i++) {
+                    const line = rawLines[i].trim();
+                    if (!line) continue;
+                    
+                    // Check for Agent/User markers in different formats
+                    if (line.startsWith('Agent:') || line.startsWith('Agent ')) {
+                        // If we were collecting text for previous speaker, add it
+                        if (currentSpeaker && currentText.length > 0) {
+                            lines.push({ speaker: currentSpeaker, text: currentText.join(' ') });
+                            currentText = [];
+                        }
+                        
+                        // Start collecting text for Agent
+                        currentSpeaker = 'Agent';
+                        const textPart = line.replace('Agent:', '').replace('Agent ', '').trim();
+                        if (textPart) {
+                            currentText.push(textPart);
+                        }
+                    } 
+                    else if (line.startsWith('User:') || line.startsWith('User ') || 
+                             line.startsWith('Patient:') || line.startsWith('Patient ')) {
+                        // If we were collecting text for previous speaker, add it
+                        if (currentSpeaker && currentText.length > 0) {
+                            lines.push({ speaker: currentSpeaker, text: currentText.join(' ') });
+                            currentText = [];
+                        }
+                        
+                        // Start collecting text for User/Patient
+                        currentSpeaker = 'Patient';
+                        const textPart = line.replace('User:', '').replace('User ', '')
+                                          .replace('Patient:', '').replace('Patient ', '').trim();
+                        if (textPart) {
+                            currentText.push(textPart);
+                        }
+                    }
+                    // Handle quotes that might indicate a speaker
+                    else if (line.startsWith('"') && currentSpeaker === null) {
+                        currentSpeaker = 'Agent';
+                        currentText.push(line);
+                    }
+                    // Continue with current speaker
+                    else if (currentSpeaker) {
+                        currentText.push(line);
+                    }
+                    // If no speaker identified yet, make a guess
+                    else {
+                        // Default to starting with Agent if we can't tell
+                        currentSpeaker = 'Agent';
+                        currentText.push(line);
+                    }
+                }
+                
+                // Add the final speaker's text
+                if (currentSpeaker && currentText.length > 0) {
+                    lines.push({ speaker: currentSpeaker, text: currentText.join(' ') });
+                }
+                
+                // Format the normalized lines
+                let formattedHtml = '';
+                for (const item of lines) {
+                    let text = item.text;
+                    
+                    // Remove surrounding quotes if present
+                    if (item.speaker === 'Agent' && text.startsWith('"') && text.endsWith('"')) {
+                        text = text.substring(1, text.length - 1).trim();
+                    }
+                    
+                    if (item.speaker === 'Agent') {
+                        formattedHtml += `<div class="agent-line"><strong>Agent:</strong> ${text}</div>\n`;
+                    } else {
+                        formattedHtml += `<div class="patient-line"><strong>Patient:</strong> ${text}</div>\n`;
+                    }
+                }
+                
+                return formattedHtml;
             }
 
             pollForNewCalls();

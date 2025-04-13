@@ -9,3 +9,4 @@ django-cors-headers
 djangorestframework
 pytz
 black
+openai>=1.0.0
