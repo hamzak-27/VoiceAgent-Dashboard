@@ -247,7 +247,7 @@ def webhook(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
     return JsonResponse({'status': 'method not allowed'}, status=405)
-
+  
 def latest_calls(request):
     last_id = request.GET.get('last_id')
     
@@ -267,6 +267,7 @@ def latest_calls(request):
         return JsonResponse({'calls': calls_data})
     
     return JsonResponse({'calls': []})
+
 
 def format_transcript(transcript):
     """
@@ -347,3 +348,4 @@ def format_transcript(transcript):
         formatted_lines.append(f"{speaker}: {text}")
     
     return "\n".join(formatted_lines)
+
